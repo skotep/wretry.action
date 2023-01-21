@@ -2,6 +2,7 @@ const core = require( '@actions/core' );
 const common = require( './Common.js' );
 require( '../node_modules/Joined.s' );
 const _ = wTools;
+const fs = require('fs')
 
 //
 
@@ -44,10 +45,21 @@ function retry( scriptType )
       throw _.error.brief( 'Expects Github action name or command, but not both.' );
 
       process.env.RETRY_ACTION = actionName;
-      const remoteActionPath = common.remotePathFromActionName( actionName );
-      const localActionPath = _.path.nativize( _.path.join( __dirname, '../../../', remoteActionPath.repo ) );
+      let localActionPath
+      if (!actionName.startsWith(".github/actions")) {
+        const remoteActionPath = common.remotePathFromActionName( actionName );
+        localActionPath = _.path.nativize( _.path.join( __dirname, '../../../', remoteActionPath.repo ) );
 
-      con.then( () => common.actionClone( localActionPath, remoteActionPath ) );
+        con.then( () => common.actionClone( localActionPath, remoteActionPath ) );
+      } else {
+        const context = JSON.parse( core.getInput( 'github_context' ) );
+
+        localActionPath = _.path.nativize( _.path.join( process.cwd(), actionName ) );
+        console.log(`using local action ${actionName} at ${localActionPath}`)
+        if (!fs.existsSync(localActionPath)) {
+          throw _.error.brief( `${localActionPath} does not exist for ${actionName} and\n${JSON.stringify(context)}`)
+        }
+      }
       con.then( () =>
       {
         const config = common.actionConfigRead( localActionPath );
